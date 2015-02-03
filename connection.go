@@ -1,1 +1,4 @@
 package gofs
+
+
+type Connection {}
