@@ -1,3 +1,3 @@
-package gofs
+package goes
 
 type Event struct{}

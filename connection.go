@@ -1,4 +1,4 @@
-package gofs
+package goes
 
-
-type Connection {}
+type Connection struct {
+}
