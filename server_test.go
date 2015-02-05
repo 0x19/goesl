@@ -1,21 +1,23 @@
 package goes
 
 import (
-	"log"
 	"testing"
 )
 
-func handleMessage() {
+func newOutboundServer(t *testing.T) *OutboundServer {
+	server, err := NewOutboundServer(":6090")
 
-}
-
-func TestListener(t *testing.T) {
-
-	c := Connection{}
-
-	if err := c.ListenAndServe(); err != nil {
-		t.Fatalf("Could not listen and serve against TLS due to: %s", err)
+	if err != nil {
+		t.Fatalf("Error while starting up outbound server: %s", err)
 	}
 
-	log.Println(c)
+	return server
+}
+
+func TestMessageHandler(t *testing.T) {
+	go func() {
+		server := newOutboundServer(t)
+		server.Listen()
+	}()
+
 }
