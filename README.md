@@ -27,6 +27,7 @@ import (
 	. "github.com/0x19/goesl"
 	"os"
 	"runtime"
+	"strings"
 )
 
 var (
@@ -34,6 +35,12 @@ var (
 )
 
 func main() {
+
+	defer func() {
+		if r := recover(); r != nil {
+			Error("Recovered in f", r)
+		}
+	}()
 
 	// Boost it as much as it can go ...
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -58,14 +65,14 @@ func main() {
 
 // handle - Running under goroutine here to explain how to send message, receive message and in general dump stuff out
 func handle(s *OutboundServer) {
-	select {
-	case conn := <-s.Conn:
+
+	for {
+
+		conn := <-s.Conns
+
 		Notice("New incomming connection: %v", conn)
 
 		conn.Send("connect")
-
-		// Uncomment if you wish to see more informational dump from freeswitch
-		// conn.Send("myevents")
 
 		aMsg, err := conn.Execute("answer", "", false)
 
@@ -75,6 +82,9 @@ func handle(s *OutboundServer) {
 		}
 
 		Debug("Answer Message: %s", aMsg)
+		Debug("Caller UUID: %s", aMsg.GetHeader("Caller-Unique-Id"))
+
+		cUUID := aMsg.GetHeader("Caller-Unique-Id")
 
 		pMsg, err := conn.Execute("playback", welcomeFile, true)
 
@@ -85,7 +95,7 @@ func handle(s *OutboundServer) {
 
 		Debug("Playback Message: %s", pMsg)
 
-		hMsg, err := conn.Execute("hangup", "", false)
+		hMsg, err := conn.ExecuteUUID(cUUID, "hangup", "", false)
 
 		if err != nil {
 			Error("Got error while executing hangup against call: %s", err)
@@ -94,22 +104,29 @@ func handle(s *OutboundServer) {
 
 		Debug("Hangup Message: %s", hMsg)
 
-		for {
-			msg, err := conn.ReadMessage()
+		done := make(chan bool)
 
-			if err != nil {
+		go func() {
+			for {
+				msg, err := conn.ReadMessage()
 
-				// Just please, don't show EOF
-				if err.Error() != "EOF" {
-					Debug("Got error while reading Freeswitch message: %s", err)
+				if err != nil {
+
+					// If it contains EOF, we really dont care...
+					if !strings.Contains(err.Error(), "EOF") {
+						Error("Error while reading Freeswitch message: %s", err)
+					}
+
+					done <- true
+					break
 				}
 
-				continue
+				Info("%s", msg.Dump())
 			}
+		}()
 
-			Info("%s", msg.Dump())
-		}
-
+		<-done
 	}
+
 }
 ```
