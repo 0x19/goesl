@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	//"strings"
+	"bytes"
 )
 
 // Message -
@@ -29,6 +30,7 @@ func (m *Message) GetHeader(key string) string {
 	return m.Headers[key]
 }
 
+// Parse -
 func (m *Message) Parse(done chan bool) error {
 
 	cmr, err := m.tr.ReadMIMEHeader()
@@ -49,7 +51,7 @@ func (m *Message) Parse(done chan bool) error {
 		l, err := strconv.Atoi(lv)
 
 		if err != nil {
-			Error("Got error while parsing message content-length value: %s", err)
+			Error("Unable to get size of content-length: %s", err)
 			return err
 		}
 
@@ -61,10 +63,6 @@ func (m *Message) Parse(done chan bool) error {
 		}
 	}
 
-	return m.parseMessageType(&cmr)
-}
-
-func (m *Message) parseMessageType(cmr *textproto.MIMEHeader) error {
 	msgType := cmr.Get("Content-Type")
 
 	Debug("Got message content (type: %s). Searching if we can handle it ...", msgType)
@@ -75,18 +73,53 @@ func (m *Message) parseMessageType(cmr *textproto.MIMEHeader) error {
 
 	// Assing message headers IF message is not type of event-json
 	if msgType != "text/event-json" {
-		for k, v := range *cmr {
+		for k, v := range cmr {
 			m.Headers[k] = v[0]
 		}
 	}
 
 	switch msgType {
 	case "text/disconnect-notice":
-		for k, v := range *cmr {
+		for k, v := range cmr {
 			Debug("Message (header: %s) -> (value: %v)", k, v)
 		}
-	case "text/reply":
+	case "command/reply":
+		reply := cmr.Get("Reply-Text")
 
+		if reply[:2] == "-E" {
+			return fmt.Errorf("Got error while reading from reply command: %s", reply[5:])
+		}
+	case "api/response":
+		if string(m.Body[:2]) == "-E" {
+			return fmt.Errorf("Got error while reading from reply command: %s", string(m.Body)[5:])
+		}
+
+	case "text/event-plain":
+		r := bufio.NewReader(bytes.NewReader(m.Body))
+
+		tr := textproto.NewReader(r)
+
+		emh, err := tr.ReadMIMEHeader()
+
+		if err != nil {
+			return fmt.Errorf("Error while reading MIME headers (text/event-plain): %s", err)
+		}
+
+		if vl := emh.Get("Content-Length"); vl != "" {
+			length, err := strconv.Atoi(vl)
+
+			if err != nil {
+				Error("Unable to get size of content-length (text/event-plain): %s", err)
+				return err
+			}
+
+			m.Body = make([]byte, length)
+
+			if _, err = io.ReadFull(r, m.Body); err != nil {
+				Error("Got error while reading body (text/event-plain): %s", err)
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -95,8 +128,6 @@ func (m *Message) parseMessageType(cmr *textproto.MIMEHeader) error {
 // Dump - Will return message prepared to be dumped out. It's like prettify message for output
 func (m *Message) Dump() (resp string) {
 	var keys []string
-
-	resp = ""
 
 	for k := range m.Headers {
 		keys = append(keys, k)
