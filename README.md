@@ -1,4 +1,4 @@
-##GoESL <- Freeswitch Event Socket Library Go Wrapper
+##Freeswitch Event Socket Library Wrapper for Go
 
 GoESL is a small wrapper around [FreeSwitch](https://freeswitch.org/) [EventSocketLibrary](https://wiki.freeswitch.org/wiki/Event_Socket_Library) written in [Go](http://golang.org).
 
