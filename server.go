@@ -1,4 +1,4 @@
-package goes
+package goesl
 
 import (
 	"fmt"
@@ -13,6 +13,51 @@ type OutboundServer struct {
 
 	Addr  string `json:"address"`
 	Proto string
+
+	Conn chan *SocketConnection
+}
+
+func (s *OutboundServer) Start() error {
+	Notice("Starting Freeswitch Outbound Server @ (address: %s) ...", s.Addr)
+
+	var err error
+
+	s.Listener, err = net.Listen(s.Proto, s.Addr)
+
+	if err != nil {
+		Error("Got error while attempting to create listener: %s", err)
+		return err
+	}
+
+	for {
+		Warning("Waiting for incoming connections ...")
+
+		c, err := s.Accept()
+		Debug("Got new connection: %q", c)
+
+		if err != nil {
+			Error("Got connection error: %s", err)
+			continue
+		}
+
+		conn := SocketConnection{
+			Conn: c,
+			err:  make(chan error),
+			m:    make(chan *Message),
+		}
+
+		go conn.handle()
+
+		s.Conn <- &conn
+	}
+
+	return nil
+}
+
+// Stop -
+func (s *OutboundServer) Stop() {
+	Debug("Stopping Outbound Server ...")
+	s.Close()
 }
 
 // NewOutboundServer - Will instanciate new outbound server
@@ -27,7 +72,11 @@ func NewOutboundServer(addr string) (*OutboundServer, error) {
 		}
 	}
 
-	server := OutboundServer{Addr: addr, Proto: "tcp"}
+	server := OutboundServer{
+		Addr:  addr,
+		Proto: INBOUND_SERVER_CONN_PROTO,
+		Conn:  make(chan *SocketConnection, EVENTS_BUFFER),
+	}
 
 	sig := make(chan os.Signal, 1)
 
@@ -41,39 +90,4 @@ func NewOutboundServer(addr string) (*OutboundServer, error) {
 	}()
 
 	return &server, nil
-}
-
-func (s *OutboundServer) Listen() error {
-	Notice("Starting Freeswitch Outbound Server @ (address: %s) ...", s.Addr)
-
-	var err error
-
-	s.Listener, err = net.Listen(s.Proto, s.Addr)
-
-	if err != nil {
-		Error("Got error while attempting to create listener: %s", err)
-		return err
-	}
-
-	for {
-		Debug("Waiting for connection ...")
-
-		conn, err := s.Accept()
-
-		Debug("")
-		Debug("---------------------------------------------------------------------------")
-		Debug("New connection: %q", conn)
-
-		if err != nil {
-			Error("Got connection error: %s", err)
-			continue
-		}
-	}
-
-	return nil
-}
-
-func (s *OutboundServer) Stop() {
-	Debug("Stopping Outbound Server ...")
-	s.Close()
 }

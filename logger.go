@@ -1,4 +1,4 @@
-package goes
+package goesl
 
 import (
 	"github.com/op/go-logging"

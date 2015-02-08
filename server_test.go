@@ -1,6 +1,7 @@
-package goes
+package goesl
 
 import (
+	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
@@ -20,4 +21,7 @@ func TestMessageHandler(t *testing.T) {
 		server.Listen()
 	}()
 
+	Convey("A", t, func() {
+
+	})
 }
