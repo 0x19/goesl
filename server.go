@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 )
 
@@ -20,7 +21,7 @@ type OutboundServer struct {
 	Addr  string `json:"address"`
 	Proto string
 
-	Conn chan *SocketConnection
+	Conns chan SocketConnection
 }
 
 func (s *OutboundServer) Start() error {
@@ -35,30 +36,44 @@ func (s *OutboundServer) Start() error {
 		return err
 	}
 
-	for {
-		Warning("Waiting for incoming connections ...")
+	// @TODO -> Fix this so that concurrency is actually configurable ...
+	_ = NewSemaphore(uint(runtime.NumCPU()))
 
-		c, err := s.Accept()
+	quit := make(chan bool)
 
-		if err != nil {
-			Error("Got connection error: %s", err)
-			continue
+	go func() {
+		for {
+			Warning("Waiting for incoming connections ...")
+
+			c, err := s.Accept()
+
+			if err != nil {
+				Error("Got connection error: %s", err)
+				quit <- true
+				break
+			}
+
+			conn := SocketConnection{
+				Conn: c,
+				err:  make(chan error),
+				m:    make(chan *Message),
+			}
+
+			Notice("Got new connection from: %s", conn.OriginatorAddr())
+
+			go conn.Handle()
+
+			s.Conns <- conn
+
 		}
+	}()
 
-		conn := SocketConnection{
-			Conn: c,
-			err:  make(chan error),
-			m:    make(chan *Message),
-		}
+	<-quit
 
-		Debug("Got new connection from: %s", conn.OriginatorAddr())
+	// Stopping server itself ...
+	s.Stop()
 
-		go conn.Handle()
-
-		s.Conn <- &conn
-	}
-
-	return nil
+	return err
 }
 
 // Stop - Will close server connection once SIGTERM/Interrupt is received
@@ -82,7 +97,7 @@ func NewOutboundServer(addr string) (*OutboundServer, error) {
 	server := OutboundServer{
 		Addr:  addr,
 		Proto: INBOUND_SERVER_CONN_PROTO,
-		Conn:  make(chan *SocketConnection, EVENTS_BUFFER),
+		Conns: make(chan SocketConnection, EVENTS_BUFFER),
 	}
 
 	sig := make(chan os.Signal, 1)

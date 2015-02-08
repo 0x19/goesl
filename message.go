@@ -40,7 +40,7 @@ func (m *Message) GetHeader(key string) string {
 
 // Parse - Will parse out message received from Freeswitch and basically build it accordingly for later use.
 // However, in case of any issues func will return error.
-func (m *Message) Parse(done chan bool) error {
+func (m *Message) Parse() error {
 
 	cmr, err := m.tr.ReadMIMEHeader()
 
@@ -51,7 +51,7 @@ func (m *Message) Parse(done chan bool) error {
 
 	if cmr.Get("Content-Type") == "" {
 		Debug("Not accepting message because of empty content type. Just whatever with it ...")
-		done <- true
+		return fmt.Errorf("Parse EOF")
 	}
 
 	// Will handle content length by checking if appropriate lenght is here and if it is than
@@ -166,7 +166,7 @@ func (m *Message) Dump() (resp string) {
 
 // newMessage - Will build and execute parsing against received freeswitch message.
 // As return will give brand new Message{} for you to use it
-func newMessage(r *bufio.Reader, done chan bool) (*Message, error) {
+func newMessage(r *bufio.Reader) (*Message, error) {
 
 	msg := Message{
 		r:       r,
@@ -174,7 +174,7 @@ func newMessage(r *bufio.Reader, done chan bool) (*Message, error) {
 		Headers: make(map[string]string),
 	}
 
-	if err := msg.Parse(done); err != nil {
+	if err := msg.Parse(); err != nil {
 		return &msg, err
 	}
 
