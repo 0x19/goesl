@@ -33,7 +33,6 @@ func (s *OutboundServer) Start() error {
 		Warning("Waiting for incoming connections ...")
 
 		c, err := s.Accept()
-		Debug("Got new connection: %q", c)
 
 		if err != nil {
 			Error("Got connection error: %s", err)
@@ -46,7 +45,9 @@ func (s *OutboundServer) Start() error {
 			m:    make(chan *Message),
 		}
 
-		go conn.handle()
+		Debug("Got new connection from: %s", conn.OriginatorAddr())
+
+		go conn.Handle()
 
 		s.Conn <- &conn
 	}
