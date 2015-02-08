@@ -3,14 +3,29 @@
 package main
 
 import (
+	"fmt"
 	. "github.com/0x19/goesl"
+	"os"
 	"runtime"
+)
+
+var (
+	welcomeFile = "%s/media/welcome.wav"
 )
 
 func main() {
 
 	// Boost it as much as it can go ...
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	wd, err := os.Getwd()
+
+	if err != nil {
+		Error("Error while attempt to get WD: %s", wd)
+		os.Exit(1)
+	}
+
+	welcomeFile = fmt.Sprintf(welcomeFile, wd)
 
 	if s, err := NewOutboundServer(":8084"); err != nil {
 		Error("Got error while starting Freeswitch outbound server: %s", err)
@@ -21,7 +36,7 @@ func main() {
 
 }
 
-// handle We'll basically
+// handle - Running under goroutine here to explain how to send message, receive message and in general dump stuff out
 func handle(s *OutboundServer) {
 	select {
 	case conn := <-s.Conn:
@@ -29,16 +44,35 @@ func handle(s *OutboundServer) {
 
 		conn.Send("connect")
 
-		//conn.Send("myevents")
+		// Uncomment if you wish to see more informational dump from freeswitch
+		// conn.Send("myevents")
 
-		answerMsg, err := conn.Execute("answer", "", false)
+		aMsg, err := conn.Execute("answer", "", false)
 
 		if err != nil {
 			Error("Got error while executing answer against call: %s", err)
 			break
 		}
 
-		Debug("Answer Message: %s", answerMsg)
+		Debug("Answer Message: %s", aMsg)
+
+		pMsg, err := conn.Execute("playback", welcomeFile, true)
+
+		if err != nil {
+			Error("Got error while executing answer against call: %s", err)
+			break
+		}
+
+		Debug("Playback Message: %s", pMsg)
+
+		hMsg, err := conn.Execute("hangup", "", false)
+
+		if err != nil {
+			Error("Got error while executing hangup against call: %s", err)
+			break
+		}
+
+		Debug("Hangup Message: %s", hMsg)
 
 		for {
 			msg, err := conn.ReadMessage()
@@ -47,7 +81,7 @@ func handle(s *OutboundServer) {
 
 				// Just please, don't show EOF
 				if err.Error() != "EOF" {
-					Error("Got error while reading Freeswitch message: %s", err)
+					Debug("Got error while reading Freeswitch message: %s", err)
 				}
 
 				continue
