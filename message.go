@@ -32,7 +32,5 @@ func newMessage(r *bufio.Reader) (*Message, error) {
 		tr: textproto.NewReader(r),
 	}
 
-	msg.
-
 	return &msg, nil
 }
