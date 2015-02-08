@@ -7,6 +7,7 @@ import (
 	"net/textproto"
 	"sort"
 	"strconv"
+	//"strings"
 )
 
 // Message -
@@ -28,13 +29,18 @@ func (m *Message) GetHeader(key string) string {
 	return m.Headers[key]
 }
 
-func (m *Message) Parse() error {
+func (m *Message) Parse(done chan bool) error {
 
 	cmr, err := m.tr.ReadMIMEHeader()
 
-	if err != nil {
+	if err != nil && err.Error() != "EOF" {
 		Error("Error while reading MIME headers: %s", err)
 		return err
+	}
+
+	if cmr.Get("Content-Type") == "" {
+		Debug("Not accepting message because of empty content type. Just whatever with it ...")
+		done <- true
 	}
 
 	// Will handle content length by checking if appropriate lenght is here and if it is than
@@ -79,6 +85,8 @@ func (m *Message) parseMessageType(cmr *textproto.MIMEHeader) error {
 		for k, v := range *cmr {
 			Debug("Message (header: %s) -> (value: %v)", k, v)
 		}
+	case "text/reply":
+
 	}
 
 	return nil
@@ -100,13 +108,13 @@ func (m *Message) Dump() (resp string) {
 		resp += fmt.Sprintf("%s: %#v\n", k, m.Headers[k])
 	}
 
-	resp += fmt.Sprintf("BODY: %#v\n", m.Body)
+	resp += fmt.Sprintf("BODY: %v\n", string(m.Body))
 
 	return
 }
 
 // newMessage -
-func newMessage(r *bufio.Reader) (*Message, error) {
+func newMessage(r *bufio.Reader, done chan bool) (*Message, error) {
 
 	msg := Message{
 		r:       r,
@@ -114,7 +122,7 @@ func newMessage(r *bufio.Reader) (*Message, error) {
 		Headers: make(map[string]string),
 	}
 
-	if err := msg.Parse(); err != nil {
+	if err := msg.Parse(done); err != nil {
 		return &msg, err
 	}
 

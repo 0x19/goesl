@@ -27,8 +27,8 @@ func (c *SocketConnection) Send(cmd string) error {
 	return nil
 }
 
-func (c *SocketConnection) Execute(command, args string, lock bool) error {
-
+// Execute -
+func (c *SocketConnection) Execute(command, args string, lock bool) (m *Message, err error) {
 	return c.SendMsg(map[string]string{
 		"call-command":     "execute",
 		"execute-app-name": command,
@@ -41,13 +41,14 @@ func (c *SocketConnection) ExecuteUUID() error {
 	return nil
 }
 
-func (c *SocketConnection) SendMsg(msg map[string]string, uuid, data string) error {
+// SendMsg - Basically this func will send message to the opened connection
+func (c *SocketConnection) SendMsg(msg map[string]string, uuid, data string) (m *Message, err error) {
 
 	b := bytes.NewBufferString("sendmsg")
 
 	if uuid != "" {
 		if strings.Contains(uuid, "\r\n") {
-			return fmt.Errorf("Invalid command provided. Command cannot contain \\r and/or \\n within. Command you provided is: %s", msg)
+			return nil, fmt.Errorf("Invalid command provided. Command cannot contain \\r and/or \\n within. Command you provided is: %s", msg)
 		}
 
 		b.WriteString(" " + uuid)
@@ -56,14 +57,13 @@ func (c *SocketConnection) SendMsg(msg map[string]string, uuid, data string) err
 	b.WriteString("\n")
 
 	for k, v := range msg {
-		// Make sure there's no \r or \n in the key, and value.
 		if strings.Contains(k, "\r\n") {
-			return fmt.Errorf("Invalid command provided. Command cannot contain \\r and/or \\n within. Command you provided is: %s", msg)
+			return nil, fmt.Errorf("Invalid command provided. Command cannot contain \\r and/or \\n within. Command you provided is: %s", msg)
 		}
 
 		if v != "" {
 			if strings.Contains(v, "\r\n") {
-				return fmt.Errorf("Invalid command provided. Command cannot contain \\r and/or \\n within. Command you provided is: %s", msg)
+				return nil, fmt.Errorf("Invalid command provided. Command cannot contain \\r and/or \\n within. Command you provided is: %s", msg)
 			}
 
 			b.WriteString(fmt.Sprintf("%s: %s\n", k, v))
@@ -77,30 +77,25 @@ func (c *SocketConnection) SendMsg(msg map[string]string, uuid, data string) err
 	}
 
 	if _, err := b.WriteTo(c); err != nil {
-		return err
+		return nil, err
 	}
 
-	/*
-		var (
-			ev  *Event
-			err error
-		)
-		select {
-		case err = <-h.err:
-			return nil, err
-		case ev = <-h.cmd:
-			return ev, nil
-		}
-	*/
-
-	return nil
+	select {
+	case err := <-c.err:
+		return nil, err
+	case m := <-c.m:
+		return m, nil
+	}
 }
 
-// OriginatorAdd - Will return REMOTE ADDR value
+// OriginatorAdd - Will return originator address known as net.RemoteAddr()
+// This will actually be a freeswitch address
 func (c *SocketConnection) OriginatorAddr() net.Addr {
 	return c.RemoteAddr()
 }
 
+// ReadMessage - Will read message from channels and return them back accordingy.
+// If error is received, error will be returned. If not, message will be returned back!
 func (c *SocketConnection) ReadMessage() (*Message, error) {
 	Debug("Waiting for connection message to be received ...")
 
@@ -112,23 +107,27 @@ func (c *SocketConnection) ReadMessage() (*Message, error) {
 	}
 }
 
-func (c *SocketConnection) handleMessage() {
+// Handle - Will handle new messages and close connection when there are no messages left to process
+func (c *SocketConnection) Handle() {
+	defer c.Close()
 
-	msg, err := newMessage(bufio.NewReaderSize(c, READER_BUFFER_SIZE))
+	done := make(chan bool)
 
-	if err != nil {
-		c.err <- err
-		return
+	for {
+		msg, err := newMessage(bufio.NewReaderSize(c, READER_BUFFER_SIZE), done)
+
+		if err != nil {
+			c.err <- err
+			done <- true
+		}
+
+		c.m <- msg
 	}
 
-	c.m <- msg
+	<-done
 }
 
-func (c *SocketConnection) Handle() {
-
-	c.handleMessage()
-}
-
+// Close - Will close down net connection and return error if error happen
 func (c *SocketConnection) Close() error {
 	if err := c.Close(); err != nil {
 		return err

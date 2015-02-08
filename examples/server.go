@@ -5,7 +5,6 @@ package main
 import (
 	. "github.com/0x19/goesl"
 	"runtime"
-	//"time"
 )
 
 func main() {
@@ -28,19 +27,29 @@ func handle(s *OutboundServer) {
 	case conn := <-s.Conn:
 		Notice("New incomming connection: %v", conn)
 
-		// About to connect ....
 		conn.Send("connect")
 
-		if err := conn.Execute("answer", "", false); err != nil {
+		//conn.Send("myevents")
+
+		answerMsg, err := conn.Execute("answer", "", false)
+
+		if err != nil {
 			Error("Got error while executing answer against call: %s", err)
 			break
 		}
+
+		Debug("Answer Message: %s", answerMsg)
 
 		for {
 			msg, err := conn.ReadMessage()
 
 			if err != nil {
-				Error("Got error while reading Freeswitch message: %s", err)
+
+				// Just please, don't show EOF
+				if err.Error() != "EOF" {
+					Error("Got error while reading Freeswitch message: %s", err)
+				}
+
 				continue
 			}
 
