@@ -59,6 +59,9 @@ func handle(s *OutboundServer) {
 		}
 
 		Debug("Answer Message: %s", aMsg)
+		Debug("Caller UUID: %s", aMsg.GetHeader("Caller-Unique-Id"))
+
+		cUUID := aMsg.GetHeader("Caller-Unique-Id")
 
 		pMsg, err := conn.Execute("playback", welcomeFile, true)
 
@@ -69,7 +72,7 @@ func handle(s *OutboundServer) {
 
 		Debug("Playback Message: %s", pMsg)
 
-		hMsg, err := conn.Execute("hangup", "", false)
+		hMsg, err := conn.ExecuteUUID(cUUID, "hangup", "", false)
 
 		if err != nil {
 			Error("Got error while executing hangup against call: %s", err)

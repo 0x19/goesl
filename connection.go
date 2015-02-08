@@ -21,7 +21,7 @@ type SocketConnection struct {
 	m   chan *Message
 }
 
-// Send -
+// Send - Will send raw message to open net connection
 func (c *SocketConnection) Send(cmd string) error {
 
 	if strings.Contains(cmd, "\r\n") {
@@ -29,6 +29,18 @@ func (c *SocketConnection) Send(cmd string) error {
 	}
 
 	fmt.Fprintf(c, "%s\r\n\r\n", cmd)
+
+	return nil
+}
+
+// SendMany - Will loop against passed commands and return 1st error if error happens
+func (c *SocketConnection) SendMany(cmds []string) error {
+
+	for _, cmd := range cmds {
+		if err := c.Send(cmd); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -43,8 +55,14 @@ func (c *SocketConnection) Execute(command, args string, lock bool) (m *Message,
 	}, "", "")
 }
 
-func (c *SocketConnection) ExecuteUUID() error {
-	return nil
+// ExecuteUUID -
+func (c *SocketConnection) ExecuteUUID(uuid string, command string, args string, lock bool) (m *Message, err error) {
+	return c.SendMsg(map[string]string{
+		"call-command":     "execute",
+		"execute-app-name": command,
+		"execute-app-arg":  args,
+		"event-lock":       strconv.FormatBool(lock),
+	}, uuid, "")
 }
 
 // SendMsg - Basically this func will send message to the opened connection
