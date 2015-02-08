@@ -2,16 +2,18 @@ package goesl
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net/textproto"
+	"net/url"
 	"sort"
 	"strconv"
-	//"strings"
-	"bytes"
+	"strings"
 )
 
-// Message -
+// Message - Freeswitch Message that is received by GoESL. Message struct is here to help with parsing message
+// and dumping its contents. In addition to that it's here to make sure received message is in fact message we wish/can support
 type Message struct {
 	Headers map[string]string
 	Body    []byte
@@ -22,7 +24,7 @@ type Message struct {
 
 // String - Will return message representation as string
 func (m *Message) String() string {
-	return fmt.Sprintf("%s body=%s", m.Headers, string(m.Body))
+	return m.Dump()
 }
 
 // GetHeader - Will return message header value, or "" if the key is not set.
@@ -30,7 +32,8 @@ func (m *Message) GetHeader(key string) string {
 	return m.Headers[key]
 }
 
-// Parse -
+// Parse - Will parse out message received from Freeswitch and basically build it accordingly for later use.
+// However, in case of any issues func will return error.
 func (m *Message) Parse(done chan bool) error {
 
 	cmr, err := m.tr.ReadMIMEHeader()
@@ -74,7 +77,18 @@ func (m *Message) Parse(done chan bool) error {
 	// Assing message headers IF message is not type of event-json
 	if msgType != "text/event-json" {
 		for k, v := range cmr {
+
 			m.Headers[k] = v[0]
+
+			// Will attempt to decode if % is discovered within the string itself
+			if strings.Contains(v[0], "%") {
+				m.Headers[k], err = url.QueryUnescape(v[0])
+
+				if err != nil {
+					Debug("Could not decode/unescape message: %s", err)
+					continue
+				}
+			}
 		}
 	}
 
@@ -136,15 +150,16 @@ func (m *Message) Dump() (resp string) {
 	sort.Strings(keys)
 
 	for _, k := range keys {
-		resp += fmt.Sprintf("%s: %#v\n", k, m.Headers[k])
+		resp += fmt.Sprintf("%s: %s\r\n", k, m.Headers[k])
 	}
 
-	resp += fmt.Sprintf("BODY: %v\n", string(m.Body))
+	resp += fmt.Sprintf("BODY: %v\r\n", string(m.Body))
 
 	return
 }
 
-// newMessage -
+// newMessage - Will build and execute parsing against received freeswitch message.
+// As return will give brand new Message{} for you to use it
 func newMessage(r *bufio.Reader, done chan bool) (*Message, error) {
 
 	msg := Message{
