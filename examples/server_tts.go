@@ -7,10 +7,13 @@
 package main
 
 import (
-	"fmt"
 	. "github.com/0x19/goesl"
 	"runtime"
 	"strings"
+)
+
+var (
+	goeslMessage = "Hello from GoESL. Open source freeswitch event socket wrapper written in Golang!"
 )
 
 func main() {
@@ -42,49 +45,48 @@ func handle(s *OutboundServer) {
 
 		Notice("New incomming connection: %v", conn)
 
-		conn.Send("connect")
+		if err := conn.Connect(); err != nil {
+			Error("Got error while accepting connection: %s", err)
+			break
+		}
 
-		aMsg, err := conn.Execute("answer", "", false)
+		answer, err := conn.ExecuteAnswer("", false)
 
 		if err != nil {
 			Error("Got error while executing answer: %s", err)
 			break
 		}
 
-		Debug("Answer Message: %s", aMsg)
-		Debug("Caller UUID: %s", aMsg.GetHeader("Caller-Unique-Id"))
+		Debug("Answer Message: %s", answer)
+		Debug("Caller UUID: %s", answer.GetHeader("Caller-Unique-Id"))
 
-		cUUID := aMsg.GetHeader("Caller-Unique-Id")
+		cUUID := answer.GetCallUUID()
 
-		if sMsg, err := conn.ExecuteSet("tts_engine", "flite", true); err != nil {
+		if te, err := conn.ExecuteSet("tts_engine", "flite", true); err != nil {
 			Error("Got error while attempting to set tts_engine: %s", err)
 		} else {
-			Debug("TTS Engine Msg: %s", sMsg)
+			Debug("TTS Engine Msg: %s", te)
 		}
 
-		if sMsg, err := conn.ExecuteSet("tts_voice", "kal", true); err != nil {
+		if tv, err := conn.ExecuteSet("tts_voice", "slt", true); err != nil {
 			Error("Got error while attempting to set tts_voice: %s", err)
 		} else {
-			Debug("TTS Voice Msg: %s", sMsg)
+			Debug("TTS Voice Msg: %s", tv)
 		}
 
-		pMsg, err := conn.Execute("speak", "Hello from GoESL. Open source freeswitch event socket wrapper written in Golang!", true)
-
-		if err != nil {
+		if sm, err := conn.Execute("speak", goeslMessage, true); err != nil {
 			Error("Got error while executing speak: %s", err)
 			break
+		} else {
+			Debug("Speak Message: %s", sm)
 		}
 
-		Debug("Speak Message: %s", pMsg)
-
-		hMsg, err := conn.ExecuteUUID(cUUID, "hangup", "", false)
-
-		if err != nil {
+		if hm, err := conn.ExecuteHangup(cUUID, "", false); err != nil {
 			Error("Got error while executing hangup: %s", err)
 			break
+		} else {
+			Debug("Hangup Message: %s", hm)
 		}
-
-		Debug("Hangup Message: %s", hMsg)
 
 		done := make(chan bool)
 

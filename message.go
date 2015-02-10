@@ -33,6 +33,11 @@ func (m *Message) String() string {
 	return m.Dump()
 }
 
+// GetCallUUID - Will return Caller-Unique-Id
+func (m *Message) GetCallUUID() string {
+	return m.GetHeader("Caller-Unique-Id")
+}
+
 // GetHeader - Will return message header value, or "" if the key is not set.
 func (m *Message) GetHeader(key string) string {
 	return m.Headers[key]

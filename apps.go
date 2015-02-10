@@ -12,7 +12,32 @@ import (
 	"fmt"
 )
 
-// Set - Helper that you can use to execute SET application against ESL
+// Set - Helper that you can use to execute SET application against active ESL session
 func (sc *SocketConnection) ExecuteSet(key string, value string, sync bool) (m *Message, err error) {
 	return sc.Execute("set", fmt.Sprintf("%s=%s", key, value), sync)
+}
+
+// ExecuteHangup - Helper desgned to help with executing Answer against active ESL session
+func (sc *SocketConnection) ExecuteAnswer(args string, sync bool) (m *Message, err error) {
+	return sc.Execute("answer", args, sync)
+}
+
+// ExecuteHangup - Helper desgned to help with executing Hangup against active ESL session
+func (sc *SocketConnection) ExecuteHangup(uuid string, args string, sync bool) (m *Message, err error) {
+	if uuid != "" {
+		return sc.ExecuteUUID(uuid, "hangup", args, sync)
+	}
+
+	return sc.Execute("hangup", args, sync)
+}
+
+// Connect - Helper designed to help you handle connection. Each outbound server when handling needs to connect e.g. accept
+// connection in order for you to do answer, hangup or do whatever else you wish to do
+func (sc *SocketConnection) Connect() error {
+	return sc.Send("connect")
+}
+
+// Exit - Used to send exit signal to ESL. It will basically hangup call and close connection
+func (sc *SocketConnection) Exit() error {
+	return sc.Send("exit")
 }
