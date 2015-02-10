@@ -15,6 +15,7 @@ import (
 	"strings"
 )
 
+// Main connection against ESL - Gotta add more description here
 type SocketConnection struct {
 	net.Conn
 	err chan error
@@ -45,23 +46,23 @@ func (c *SocketConnection) SendMany(cmds []string) error {
 	return nil
 }
 
-// Execute -
-func (c *SocketConnection) Execute(command, args string, lock bool) (m *Message, err error) {
+// Execute - Helper fuck to execute commands with its args and sync/async mode
+func (c *SocketConnection) Execute(command, args string, sync bool) (m *Message, err error) {
 	return c.SendMsg(map[string]string{
 		"call-command":     "execute",
 		"execute-app-name": command,
 		"execute-app-arg":  args,
-		"event-lock":       strconv.FormatBool(lock),
+		"event-lock":       strconv.FormatBool(sync),
 	}, "", "")
 }
 
-// ExecuteUUID -
-func (c *SocketConnection) ExecuteUUID(uuid string, command string, args string, lock bool) (m *Message, err error) {
+// ExecuteUUID - Helper fuck to execute uuid specific commands with its args and sync/async mode
+func (c *SocketConnection) ExecuteUUID(uuid string, command string, args string, sync bool) (m *Message, err error) {
 	return c.SendMsg(map[string]string{
 		"call-command":     "execute",
 		"execute-app-name": command,
 		"execute-app-arg":  args,
-		"event-lock":       strconv.FormatBool(lock),
+		"event-lock":       strconv.FormatBool(sync),
 	}, uuid, "")
 }
 
