@@ -55,75 +55,76 @@ func handle(s *OutboundServer) {
 
 	for {
 
-		conn := <-s.Conns
+		select {
 
-		Notice("New incomming connection: %v", conn)
+		case conn := <-s.Conns:
+			Notice("New incomming connection: %v", conn)
 
-		if err := conn.Connect(); err != nil {
-			Error("Got error while accepting connection: %s", err)
-			break
-		}
+			if err := conn.Connect(); err != nil {
+				Error("Got error while accepting connection: %s", err)
+				break
+			}
 
-		answer, err := conn.ExecuteAnswer("", false)
+			answer, err := conn.ExecuteAnswer("", false)
 
-		if err != nil {
-			Error("Got error while executing answer: %s", err)
-			break
-		}
+			if err != nil {
+				Error("Got error while executing answer: %s", err)
+				break
+			}
 
-		Debug("Answer Message: %s", answer)
-		Debug("Caller UUID: %s", answer.GetHeader("Caller-Unique-Id"))
+			Debug("Answer Message: %s", answer)
+			Debug("Caller UUID: %s", answer.GetHeader("Caller-Unique-Id"))
 
-		cUUID := answer.GetCallUUID()
+			cUUID := answer.GetCallUUID()
 
-		if te, err := conn.ExecuteSet("tts_engine", "flite", false); err != nil {
-			Error("Got error while attempting to set tts_engine: %s", err)
-		} else {
-			Debug("TTS Engine Msg: %s", te)
-		}
+			if te, err := conn.ExecuteSet("tts_engine", "flite", false); err != nil {
+				Error("Got error while attempting to set tts_engine: %s", err)
+			} else {
+				Debug("TTS Engine Msg: %s", te)
+			}
 
-		if tv, err := conn.ExecuteSet("tts_voice", "slt", false); err != nil {
-			Error("Got error while attempting to set tts_voice: %s", err)
-		} else {
-			Debug("TTS Voice Msg: %s", tv)
-		}
+			if tv, err := conn.ExecuteSet("tts_voice", "slt", false); err != nil {
+				Error("Got error while attempting to set tts_voice: %s", err)
+			} else {
+				Debug("TTS Voice Msg: %s", tv)
+			}
 
-		if sm, err := conn.Execute("speak", goeslMessage, true); err != nil {
-			Error("Got error while executing speak: %s", err)
-			break
-		} else {
-			Debug("Speak Message: %s", sm)
-		}
+			if sm, err := conn.Execute("speak", goeslMessage, true); err != nil {
+				Error("Got error while executing speak: %s", err)
+				break
+			} else {
+				Debug("Speak Message: %s", sm)
+			}
 
-		if hm, err := conn.ExecuteHangup(cUUID, "", false); err != nil {
-			Error("Got error while executing hangup: %s", err)
-			break
-		} else {
-			Debug("Hangup Message: %s", hm)
-		}
+			if hm, err := conn.ExecuteHangup(cUUID, "", false); err != nil {
+				Error("Got error while executing hangup: %s", err)
+				break
+			} else {
+				Debug("Hangup Message: %s", hm)
+			}
 
-		done := make(chan bool)
+			go func() {
+				for {
+					msg, err := conn.ReadMessage()
 
-		go func() {
-			for {
-				msg, err := conn.ReadMessage()
+					if err != nil {
 
-				if err != nil {
-
-					// If it contains EOF, we really dont care...
-					if !strings.Contains(err.Error(), "EOF") {
-						Error("Error while reading Freeswitch message: %s", err)
+						// If it contains EOF, we really dont care...
+						if !strings.Contains(err.Error(), "EOF") {
+							Error("Error while reading Freeswitch message: %s", err)
+						}
+						break
 					}
 
-					done <- true
-					break
+					Debug("%s", msg.Dump())
 				}
+			}()
 
-				Debug("%s", msg.Dump())
-			}
-		}()
-
-		<-done
+		default:
+			// YabbaDabbaDooooo!
+			//Flintstones. Meet the Flintstones. They're the modern stone age family. From the town of Bedrock,
+			// They're a page right out of history. La la,lalalalala la :D
+		}
 	}
 
 }
