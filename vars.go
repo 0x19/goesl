@@ -8,6 +8,9 @@ package goesl
 
 var (
 
+	// Size of buffer when we read from connection
+	ReadBufferSize = 1024 << 6
+
 	// Supported freeswitch events that we can/wish to parse out
 	AvailableMessageTypes = []string{"text/disconnect-notice", "text/event-json", "text/event-plain", "api/response", "command/reply"}
 )

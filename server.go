@@ -11,7 +11,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 )
 
@@ -32,12 +31,9 @@ func (s *OutboundServer) Start() error {
 	s.Listener, err = net.Listen(s.Proto, s.Addr)
 
 	if err != nil {
-		Error("Got error while attempting to create listener: %s", err)
+		Error(ECouldNotStartListener, err)
 		return err
 	}
-
-	// @TODO -> Fix this so that concurrency is actually configurable ...
-	_ = NewSemaphore(uint(runtime.NumCPU()))
 
 	quit := make(chan bool)
 
@@ -48,10 +44,12 @@ func (s *OutboundServer) Start() error {
 			c, err := s.Accept()
 
 			if err != nil {
-				Error("Got connection error: %s", err)
+				Error(EListenerConnection, err)
 				quit <- true
 				break
 			}
+
+			Debug("Aha")
 
 			conn := SocketConnection{
 				Conn: c,
@@ -64,7 +62,6 @@ func (s *OutboundServer) Start() error {
 			go conn.Handle()
 
 			s.Conns <- conn
-
 		}
 	}()
 
@@ -90,14 +87,14 @@ func NewOutboundServer(addr string) (*OutboundServer, error) {
 		addr = os.Getenv("GOES_OUTBOUND_SERVER_ADDR")
 
 		if addr == "" {
-			return nil, fmt.Errorf("Please make sure to pass along valid address. You've passed: \"%s\"", addr)
+			return nil, fmt.Errorf(EInvalidServerAddr, addr)
 		}
 	}
 
 	server := OutboundServer{
 		Addr:  addr,
-		Proto: INBOUND_SERVER_CONN_PROTO,
-		Conns: make(chan SocketConnection, EVENTS_BUFFER),
+		Proto: "tcp", // Not seeing reason why this could become configurable at this moment
+		Conns: make(chan SocketConnection),
 	}
 
 	sig := make(chan os.Signal, 1)

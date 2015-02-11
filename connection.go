@@ -26,7 +26,7 @@ type SocketConnection struct {
 func (c *SocketConnection) Send(cmd string) error {
 
 	if strings.Contains(cmd, "\r\n") {
-		fmt.Errorf("Invalid command provided. Command cannot contain \\r and/or \\n within. Command you provided is: %s", cmd)
+		fmt.Errorf(EInvalidCommandProvided, cmd)
 	}
 
 	fmt.Fprintf(c, "%s\r\n\r\n", cmd)
@@ -73,7 +73,7 @@ func (c *SocketConnection) SendMsg(msg map[string]string, uuid, data string) (m 
 
 	if uuid != "" {
 		if strings.Contains(uuid, "\r\n") {
-			return nil, fmt.Errorf("Invalid command provided. Command cannot contain \\r and/or \\n within. Command you provided is: %s", msg)
+			return nil, fmt.Errorf(EInvalidCommandProvided, msg)
 		}
 
 		b.WriteString(" " + uuid)
@@ -83,12 +83,12 @@ func (c *SocketConnection) SendMsg(msg map[string]string, uuid, data string) (m 
 
 	for k, v := range msg {
 		if strings.Contains(k, "\r\n") {
-			return nil, fmt.Errorf("Invalid command provided. Command cannot contain \\r and/or \\n within. Command you provided is: %s", msg)
+			return nil, fmt.Errorf(EInvalidCommandProvided, msg)
 		}
 
 		if v != "" {
 			if strings.Contains(v, "\r\n") {
-				return nil, fmt.Errorf("Invalid command provided. Command cannot contain \\r and/or \\n within. Command you provided is: %s", msg)
+				return nil, fmt.Errorf(EInvalidCommandProvided, msg)
 			}
 
 			b.WriteString(fmt.Sprintf("%s: %s\n", k, v))
@@ -139,7 +139,7 @@ func (c *SocketConnection) Handle() {
 
 	go func() {
 		for {
-			msg, err := newMessage(bufio.NewReaderSize(c, READER_BUFFER_SIZE))
+			msg, err := newMessage(bufio.NewReaderSize(c, ReadBufferSize))
 
 			if err != nil {
 				c.err <- err

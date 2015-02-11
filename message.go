@@ -50,7 +50,7 @@ func (m *Message) Parse() error {
 	cmr, err := m.tr.ReadMIMEHeader()
 
 	if err != nil && err.Error() != "EOF" {
-		Error("Error while reading MIME headers: %s", err)
+		Error(ECouldNotReadMIMEHeaders, err)
 		return err
 	}
 
@@ -65,14 +65,14 @@ func (m *Message) Parse() error {
 		l, err := strconv.Atoi(lv)
 
 		if err != nil {
-			Error("Unable to get size of content-length: %s", err)
+			Error(EInvalidContentLength, err)
 			return err
 		}
 
 		m.Body = make([]byte, l)
 
 		if _, err := io.ReadFull(m.r, m.Body); err != nil {
-			Error("Got error while reading reader body: %s", err)
+			Error(ECouldNotReadyBody, err)
 			return err
 		}
 	}
@@ -82,7 +82,7 @@ func (m *Message) Parse() error {
 	Debug("Got message content (type: %s). Searching if we can handle it ...", msgType)
 
 	if !StringInSlice(msgType, AvailableMessageTypes) {
-		return fmt.Errorf("Unsupported message type! We got '%s'. Supported types are: %v ", msgType, AvailableMessageTypes)
+		return fmt.Errorf(EUnsupportedMessageType, msgType, AvailableMessageTypes)
 	}
 
 	// Assing message headers IF message is not type of event-json
@@ -96,7 +96,7 @@ func (m *Message) Parse() error {
 				m.Headers[k], err = url.QueryUnescape(v[0])
 
 				if err != nil {
-					Debug("Could not decode/unescape message: %s", err)
+					Error(ECouldNotDecode, err)
 					continue
 				}
 			}
@@ -111,12 +111,12 @@ func (m *Message) Parse() error {
 	case "command/reply":
 		reply := cmr.Get("Reply-Text")
 
-		if reply[:2] == "-E" {
-			return fmt.Errorf("Got error while reading from reply command: %s", reply[5:])
+		if strings.Contains(reply, "-ERR") {
+			return fmt.Errorf(EUnsuccessfulReply, reply[5:])
 		}
 	case "api/response":
-		if string(m.Body[:2]) == "-E" {
-			return fmt.Errorf("Got error while reading from reply command: %s", string(m.Body)[5:])
+		if strings.Contains(string(m.Body), "-ERR") {
+			return fmt.Errorf(EUnsuccessfulReply, string(m.Body)[5:])
 		}
 
 	case "text/event-plain":
@@ -127,21 +127,21 @@ func (m *Message) Parse() error {
 		emh, err := tr.ReadMIMEHeader()
 
 		if err != nil {
-			return fmt.Errorf("Error while reading MIME headers (text/event-plain): %s", err)
+			return fmt.Errorf(ECouldNotReadMIMEHeaders, err)
 		}
 
 		if vl := emh.Get("Content-Length"); vl != "" {
 			length, err := strconv.Atoi(vl)
 
 			if err != nil {
-				Error("Unable to get size of content-length (text/event-plain): %s", err)
+				Error(EInvalidContentLength, err)
 				return err
 			}
 
 			m.Body = make([]byte, length)
 
 			if _, err = io.ReadFull(r, m.Body); err != nil {
-				Error("Got error while reading body (text/event-plain): %s", err)
+				Error(ECouldNotReadyBody, err)
 				return err
 			}
 		}
