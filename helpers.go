@@ -4,13 +4,11 @@
 // I didn't write all of this code so you could say it's yours.
 // MIT License
 
-// This package is used to set helpers for common applications that we may use such as set variable against dialplan
+// This package is used to set helpers for common applications/send that we may use such as set variable against dialplan or accepting connection
 
 package goesl
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // Set - Helper that you can use to execute SET application against active ESL session
 func (sc *SocketConnection) ExecuteSet(key string, value string, sync bool) (m *Message, err error) {
