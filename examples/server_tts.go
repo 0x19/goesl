@@ -4,7 +4,7 @@
 // I didn't write all of this code so you could say it's yours.
 // MIT License
 
-package main
+package examples
 
 import (
 	. "github.com/0x19/goesl"
