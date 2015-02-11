@@ -21,12 +21,7 @@ func newOutboundServer(t *testing.T) *OutboundServer {
 	return server
 }
 
-func TestMessageHandler(t *testing.T) {
-	go func() {
-		server := newOutboundServer(t)
-		server.Listen()
-	}()
-
+func TestJustToTest(t *testing.T) {
 	Convey("A", t, func() {
 
 	})
