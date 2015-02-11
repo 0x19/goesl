@@ -52,13 +52,11 @@ func (c *Client) Authenticate() error {
 	Debug("A: %v %v ", cmr, err)
 
 	if err != nil && err.Error() != "EOF" {
-		c.Close()
 		Error(ECouldNotReadMIMEHeaders, err)
 		return err
 	}
 
 	if cmr.Get("Content-Type") != "auth/request" {
-		c.Close()
 		Error(EUnexpectedAuthHeader, cmr.Get("Content-Type"))
 		return fmt.Errorf(EUnexpectedAuthHeader, cmr.Get("Content-Type"))
 	}
@@ -68,13 +66,11 @@ func (c *Client) Authenticate() error {
 	am, err := m.tr.ReadMIMEHeader()
 
 	if err != nil && err.Error() != "EOF" {
-		c.Close()
 		Error(ECouldNotReadMIMEHeaders, err)
 		return err
 	}
 
 	if am.Get("Reply-Text") != "+OK accepted" {
-		c.Close()
 		Error(EInvalidPassword, c.Passwd)
 		return fmt.Errorf(EInvalidPassword, c.Passwd)
 	}
@@ -97,6 +93,7 @@ func NewClient(host string, port uint, passwd string, timeout int) (Client, erro
 	}
 
 	if err := client.Authenticate(); err != nil {
+		client.Close()
 		return client, err
 	}
 
