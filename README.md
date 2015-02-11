@@ -15,44 +15,31 @@ Point of this library is to fully implement Freeswitch ESL and bring outbound se
 ### Examples
 
 
-#### Server
-
-This is a server example so far. What it will do is accept connection, send answer, play a audio file followed by hangup
+#### TTS Server
 
 ```go
 package main
 
 import (
-	"fmt"
 	. "github.com/0x19/goesl"
-	"os"
 	"runtime"
 	"strings"
 )
 
 var (
-	welcomeFile = "%s/media/welcome.wav"
+	goeslMessage = "Hello from GoESL. Open source freeswitch event socket wrapper written in Golang!"
 )
 
 func main() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			Error("Recovered in f", r)
+			Error("Recovered in: ", r)
 		}
 	}()
 
 	// Boost it as much as it can go ...
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	wd, err := os.Getwd()
-
-	if err != nil {
-		Error("Error while attempt to get WD: %s", wd)
-		os.Exit(1)
-	}
-
-	welcomeFile = fmt.Sprintf(welcomeFile, wd)
 
 	if s, err := NewOutboundServer(":8084"); err != nil {
 		Error("Got error while starting Freeswitch outbound server: %s", err)
@@ -63,7 +50,7 @@ func main() {
 
 }
 
-// handle - Running under goroutine here to explain how to send message, receive message and in general dump stuff out
+// handle - Running under goroutine here to explain how to run tts outbound server
 func handle(s *OutboundServer) {
 
 	for {
@@ -72,37 +59,48 @@ func handle(s *OutboundServer) {
 
 		Notice("New incomming connection: %v", conn)
 
-		conn.Send("connect")
-
-		aMsg, err := conn.Execute("answer", "", false)
-
-		if err != nil {
-			Error("Got error while executing answer against call: %s", err)
+		if err := conn.Connect(); err != nil {
+			Error("Got error while accepting connection: %s", err)
 			break
 		}
 
-		Debug("Answer Message: %s", aMsg)
-		Debug("Caller UUID: %s", aMsg.GetHeader("Caller-Unique-Id"))
-
-		cUUID := aMsg.GetHeader("Caller-Unique-Id")
-
-		pMsg, err := conn.Execute("playback", welcomeFile, true)
+		answer, err := conn.ExecuteAnswer("", false)
 
 		if err != nil {
-			Error("Got error while executing answer against call: %s", err)
+			Error("Got error while executing answer: %s", err)
 			break
 		}
 
-		Debug("Playback Message: %s", pMsg)
+		Debug("Answer Message: %s", answer)
+		Debug("Caller UUID: %s", answer.GetHeader("Caller-Unique-Id"))
 
-		hMsg, err := conn.ExecuteUUID(cUUID, "hangup", "", false)
+		cUUID := answer.GetCallUUID()
 
-		if err != nil {
-			Error("Got error while executing hangup against call: %s", err)
-			break
+		if te, err := conn.ExecuteSet("tts_engine", "flite", false); err != nil {
+			Error("Got error while attempting to set tts_engine: %s", err)
+		} else {
+			Debug("TTS Engine Msg: %s", te)
 		}
 
-		Debug("Hangup Message: %s", hMsg)
+		if tv, err := conn.ExecuteSet("tts_voice", "slt", false); err != nil {
+			Error("Got error while attempting to set tts_voice: %s", err)
+		} else {
+			Debug("TTS Voice Msg: %s", tv)
+		}
+
+		if sm, err := conn.Execute("speak", goeslMessage, true); err != nil {
+			Error("Got error while executing speak: %s", err)
+			break
+		} else {
+			Debug("Speak Message: %s", sm)
+		}
+
+		if hm, err := conn.ExecuteHangup(cUUID, "", false); err != nil {
+			Error("Got error while executing hangup: %s", err)
+			break
+		} else {
+			Debug("Hangup Message: %s", hm)
+		}
 
 		done := make(chan bool)
 
@@ -121,7 +119,7 @@ func handle(s *OutboundServer) {
 					break
 				}
 
-				Info("%s", msg.Dump())
+				Debug("%s", msg.Dump())
 			}
 		}()
 

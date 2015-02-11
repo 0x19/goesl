@@ -20,7 +20,7 @@ func main() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			Error("Recovered in f", r)
+			Error("Recovered in: ", r)
 		}
 	}()
 
@@ -62,13 +62,13 @@ func handle(s *OutboundServer) {
 
 		cUUID := answer.GetCallUUID()
 
-		if te, err := conn.ExecuteSet("tts_engine", "flite", true); err != nil {
+		if te, err := conn.ExecuteSet("tts_engine", "flite", false); err != nil {
 			Error("Got error while attempting to set tts_engine: %s", err)
 		} else {
 			Debug("TTS Engine Msg: %s", te)
 		}
 
-		if tv, err := conn.ExecuteSet("tts_voice", "slt", true); err != nil {
+		if tv, err := conn.ExecuteSet("tts_voice", "slt", false); err != nil {
 			Error("Got error while attempting to set tts_voice: %s", err)
 		} else {
 			Debug("TTS Voice Msg: %s", tv)
