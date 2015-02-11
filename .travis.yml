@@ -6,4 +6,4 @@ go:
   - tip
 
 script:
-	go test -run="TestJustToTest"
+  - go test -run="TestJustToTest"

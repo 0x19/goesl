@@ -9,123 +9,39 @@ GoESL is a small wrapper around [FreeSwitch](https://freeswitch.org/) [EventSock
 
 Point of this library is to fully implement Freeswitch ESL and bring outbound server as inbound client to you, fellow go developer :)
 
-**This package is in DEVELOPMENT mode. It does not work and I don't know when will I get it to work due to lack of the free time in this moment.** 
-
 
 ### Examples
 
+There are few different types of examples that can be found at [GOESL Examples](https://github.com/0x19/goesl/tree/master/examples).
 
-#### TTS Server
+Feel free to suggest more examples :)
 
-```go
-package main
 
-import (
-	. "github.com/0x19/goesl"
-	"runtime"
-	"strings"
-)
+### Contributions / Issues?
 
-var (
-	goeslMessage = "Hello from GoESL. Open source freeswitch event socket wrapper written in Golang!"
-)
+Please reach me over nevio.vesic@gmail.com or submit new Issue. I'd prefer tho if you would submit issue.
 
-func main() {
 
-	defer func() {
-		if r := recover(); r != nil {
-			Error("Recovered in: ", r)
-		}
-	}()
+### License
 
-	// Boost it as much as it can go ...
-	runtime.GOMAXPROCS(runtime.NumCPU())
+The MIT License (MIT)
 
-	if s, err := NewOutboundServer(":8084"); err != nil {
-		Error("Got error while starting Freeswitch outbound server: %s", err)
-	} else {
-		go handle(s)
-		s.Start()
-	}
+Copyright (c) 2015 Nevio Vesic
 
-}
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-// handle - Running under goroutine here to explain how to run tts outbound server
-func handle(s *OutboundServer) {
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-	for {
-
-		select {
-
-		case conn := <-s.Conns:
-			Notice("New incomming connection: %v", conn)
-
-			if err := conn.Connect(); err != nil {
-				Error("Got error while accepting connection: %s", err)
-				break
-			}
-
-			answer, err := conn.ExecuteAnswer("", false)
-
-			if err != nil {
-				Error("Got error while executing answer: %s", err)
-				break
-			}
-
-			Debug("Answer Message: %s", answer)
-			Debug("Caller UUID: %s", answer.GetHeader("Caller-Unique-Id"))
-
-			cUUID := answer.GetCallUUID()
-
-			if te, err := conn.ExecuteSet("tts_engine", "flite", false); err != nil {
-				Error("Got error while attempting to set tts_engine: %s", err)
-			} else {
-				Debug("TTS Engine Msg: %s", te)
-			}
-
-			if tv, err := conn.ExecuteSet("tts_voice", "slt", false); err != nil {
-				Error("Got error while attempting to set tts_voice: %s", err)
-			} else {
-				Debug("TTS Voice Msg: %s", tv)
-			}
-
-			if sm, err := conn.Execute("speak", goeslMessage, true); err != nil {
-				Error("Got error while executing speak: %s", err)
-				break
-			} else {
-				Debug("Speak Message: %s", sm)
-			}
-
-			if hm, err := conn.ExecuteHangup(cUUID, "", false); err != nil {
-				Error("Got error while executing hangup: %s", err)
-				break
-			} else {
-				Debug("Hangup Message: %s", hm)
-			}
-
-			go func() {
-				for {
-					msg, err := conn.ReadMessage()
-
-					if err != nil {
-
-						// If it contains EOF, we really dont care...
-						if !strings.Contains(err.Error(), "EOF") {
-							Error("Error while reading Freeswitch message: %s", err)
-						}
-						break
-					}
-
-					Debug("%s", msg.Dump())
-				}
-			}()
-
-		default:
-			// YabbaDabbaDooooo!
-			//Flintstones. Meet the Flintstones. They're the modern stone age family. From the town of Bedrock,
-			// They're a page right out of history. La la,lalalalala la :D
-		}
-	}
-
-}
-```
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
