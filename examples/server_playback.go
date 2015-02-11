@@ -14,9 +14,7 @@ import (
 	"strings"
 )
 
-var (
-	welcomeFile = "%s/media/welcome.wav"
-)
+var welcomeFile = "%s/media/welcome.wav"
 
 func main() {
 
@@ -47,69 +45,69 @@ func main() {
 
 }
 
-// handle - Running under goroutine here to explain how to send message, receive message and in general dump stuff out
+// handle - Running under goroutine here to explain how to handle playback ( play to the caller )
 func handle(s *OutboundServer) {
 
 	for {
 
-		conn := <-s.Conns
+		select {
 
-		Notice("New incomming connection: %v", conn)
+		case conn := <-s.Conns:
+			Notice("New incomming connection: %v", conn)
 
-		conn.Send("connect")
+			if err := conn.Connect(); err != nil {
+				Error("Got error while accepting connection: %s", err)
+				break
+			}
 
-		aMsg, err := conn.Execute("answer", "", false)
+			answer, err := conn.ExecuteAnswer("", false)
 
-		if err != nil {
-			Error("Got error while executing answer against call: %s", err)
-			break
-		}
+			if err != nil {
+				Error("Got error while executing answer: %s", err)
+				break
+			}
 
-		Debug("Answer Message: %s", aMsg)
-		Debug("Caller UUID: %s", aMsg.GetHeader("Caller-Unique-Id"))
+			Debug("Answer Message: %s", answer)
+			Debug("Caller UUID: %s", answer.GetHeader("Caller-Unique-Id"))
 
-		cUUID := aMsg.GetHeader("Caller-Unique-Id")
+			cUUID := answer.GetCallUUID()
 
-		pMsg, err := conn.Execute("playback", welcomeFile, true)
+			if sm, err := conn.Execute("playback", welcomeFile, true); err != nil {
+				Error("Got error while executing playback: %s", err)
+				break
+			} else {
+				Debug("Playback Message: %s", sm)
+			}
 
-		if err != nil {
-			Error("Got error while executing answer against call: %s", err)
-			break
-		}
+			if hm, err := conn.ExecuteHangup(cUUID, "", false); err != nil {
+				Error("Got error while executing hangup: %s", err)
+				break
+			} else {
+				Debug("Hangup Message: %s", hm)
+			}
 
-		Debug("Playback Message: %s", pMsg)
+			go func() {
+				for {
+					msg, err := conn.ReadMessage()
 
-		hMsg, err := conn.ExecuteUUID(cUUID, "hangup", "", false)
+					if err != nil {
 
-		if err != nil {
-			Error("Got error while executing hangup against call: %s", err)
-			break
-		}
-
-		Debug("Hangup Message: %s", hMsg)
-
-		done := make(chan bool)
-
-		go func() {
-			for {
-				msg, err := conn.ReadMessage()
-
-				if err != nil {
-
-					// If it contains EOF, we really dont care...
-					if !strings.Contains(err.Error(), "EOF") {
-						Error("Error while reading Freeswitch message: %s", err)
+						// If it contains EOF, we really dont care...
+						if !strings.Contains(err.Error(), "EOF") {
+							Error("Error while reading Freeswitch message: %s", err)
+						}
+						break
 					}
 
-					done <- true
-					break
+					Debug("%s", msg)
 				}
+			}()
 
-				Info("%s", msg.Dump())
-			}
-		}()
-
-		<-done
+		default:
+			// YabbaDabbaDooooo!
+			//Flintstones. Meet the Flintstones. They're the modern stone age family. From the town of Bedrock,
+			// They're a page right out of history. La la,lalalalala la :D
+		}
 	}
 
 }

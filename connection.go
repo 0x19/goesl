@@ -13,6 +13,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Main connection against ESL - Gotta add more description here
@@ -20,6 +21,11 @@ type SocketConnection struct {
 	net.Conn
 	err chan error
 	m   chan *Message
+}
+
+// Dial - Will establish timedout dial against specified address. In this case, it will be freeswitch server
+func (c *SocketConnection) Dial(network string, addr string, timeout time.Duration) (net.Conn, error) {
+	return net.DialTimeout(network, addr, timeout)
 }
 
 // Send - Will send raw message to open net connection
@@ -139,7 +145,7 @@ func (c *SocketConnection) Handle() {
 
 	go func() {
 		for {
-			msg, err := newMessage(bufio.NewReaderSize(c, ReadBufferSize))
+			msg, err := newMessage(bufio.NewReaderSize(c, ReadBufferSize), true)
 
 			if err != nil {
 				c.err <- err

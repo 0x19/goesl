@@ -12,5 +12,5 @@ var (
 	ReadBufferSize = 1024 << 6
 
 	// Supported freeswitch events that we can/wish to parse out
-	AvailableMessageTypes = []string{"text/disconnect-notice", "text/event-json", "text/event-plain", "api/response", "command/reply"}
+	AvailableMessageTypes = []string{"auth/request", "text/disconnect-notice", "text/event-json", "text/event-plain", "api/response", "command/reply"}
 )

@@ -102,7 +102,7 @@ func handle(s *OutboundServer) {
 						break
 					}
 
-					Debug("%s", msg.Dump())
+					Debug("%s", msg)
 				}
 			}()
 

@@ -17,4 +17,7 @@ var (
 	ECouldNotStartListener   = "Got error while attempting to start listener: %s"
 	EListenerConnection      = "Listener connection error: %s"
 	EInvalidServerAddr       = "Please make sure to pass along valid address. You've passed: \"%s\""
+	EUnexpectedAuthHeader    = "Expected auth/request content type. Got %s"
+	EInvalidPassword         = "Could not authenticate against freeswitch with provided password: %s"
+	ECouldNotCreateMessage   = "Error while creating new message: %s"
 )

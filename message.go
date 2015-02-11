@@ -9,6 +9,7 @@ package goesl
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/textproto"
@@ -30,7 +31,7 @@ type Message struct {
 
 // String - Will return message representation as string
 func (m *Message) String() string {
-	return m.Dump()
+	return fmt.Sprintf("%v body=%s", m.Headers, m.Body)
 }
 
 // GetCallUUID - Will return Caller-Unique-Id
@@ -118,6 +119,17 @@ func (m *Message) Parse() error {
 		if strings.Contains(string(m.Body), "-ERR") {
 			return fmt.Errorf(EUnsuccessfulReply, string(m.Body)[5:])
 		}
+	case "text/event-json":
+		if err := json.Unmarshal(m.Body, &m.Headers); err != nil {
+			return err
+		}
+
+		if v, _ := m.Headers["_body"]; v != "" {
+			m.Body = []byte(v)
+			delete(m.Headers, "_body")
+		} else {
+			m.Body = []byte("")
+		}
 
 	case "text/event-plain":
 		r := bufio.NewReader(bytes.NewReader(m.Body))
@@ -170,8 +182,8 @@ func (m *Message) Dump() (resp string) {
 }
 
 // newMessage - Will build and execute parsing against received freeswitch message.
-// As return will give brand new Message{} for you to use it
-func newMessage(r *bufio.Reader) (*Message, error) {
+// As return will give brand new Message{} for you to use it.
+func newMessage(r *bufio.Reader, autoParse bool) (*Message, error) {
 
 	msg := Message{
 		r:       r,
@@ -179,8 +191,10 @@ func newMessage(r *bufio.Reader) (*Message, error) {
 		Headers: make(map[string]string),
 	}
 
-	if err := msg.Parse(); err != nil {
-		return &msg, err
+	if autoParse {
+		if err := msg.Parse(); err != nil {
+			return &msg, err
+		}
 	}
 
 	return &msg, nil

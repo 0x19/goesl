@@ -14,6 +14,7 @@ import (
 	"syscall"
 )
 
+// OutboundServer - In case you need to start server, this Struct have it covered
 type OutboundServer struct {
 	net.Listener
 
@@ -23,6 +24,7 @@ type OutboundServer struct {
 	Conns chan SocketConnection
 }
 
+// Start - Will start new outbound server
 func (s *OutboundServer) Start() error {
 	Notice("Starting Freeswitch Outbound Server @ (address: %s) ...", s.Addr)
 
@@ -48,8 +50,6 @@ func (s *OutboundServer) Start() error {
 				quit <- true
 				break
 			}
-
-			Debug("Aha")
 
 			conn := SocketConnection{
 				Conn: c,

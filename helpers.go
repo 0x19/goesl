@@ -4,8 +4,6 @@
 // I didn't write all of this code so you could say it's yours.
 // MIT License
 
-// This package is used to set helpers for common applications/send that we may use such as set variable against dialplan or accepting connection
-
 package goesl
 
 import "fmt"
@@ -27,6 +25,16 @@ func (sc *SocketConnection) ExecuteHangup(uuid string, args string, sync bool) (
 	}
 
 	return sc.Execute("hangup", args, sync)
+}
+
+// BgApi - Helper designed to attach api in front of the command so that you do not need to write it
+func (sc *SocketConnection) Api(command string) error {
+	return sc.Send(fmt.Sprintf("api %s", command))
+}
+
+// BgApi - Helper designed to attach bgapi in front of the command so that you do not need to write it
+func (sc *SocketConnection) BgApi(command string) error {
+	return sc.Send(fmt.Sprintf("bgapi %s", command))
 }
 
 // Connect - Helper designed to help you handle connection. Each outbound server when handling needs to connect e.g. accept
