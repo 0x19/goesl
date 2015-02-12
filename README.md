@@ -7,7 +7,12 @@
 
 GoESL is a small wrapper around [FreeSwitch](https://freeswitch.org/) [Event Socket Library](https://wiki.freeswitch.org/wiki/Event_Socket_Library) written in [Go](http://golang.org).
 
-Point of this library is to fully implement Freeswitch ESL and bring outbound server as inbound client to you, fellow go developer :)
+Point of this library is to fully implement Freeswitch ESL and bring outbound server as inbound client to you, fellow Go developer :)
+
+
+### TODO?
+
+You can find what still needs to be done at [GoESL TODO](https://github.com/0x19/goesl/blob/master/TODO.md)
 
 
 ### Examples
