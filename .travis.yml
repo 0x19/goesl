@@ -6,6 +6,7 @@ go:
   - tip
   
 install:
+  - go get -v "github.com/smartystreets/goconvey"
   - go get -v "github.com/op/go-logging"
 
 script:
