@@ -24,7 +24,7 @@ Feel free to suggest more examples :)
 
 ### Contributions / Issues?
 
-Please reach me over nevio.vesic@gmail.com or submit new Issue. I'd prefer tho if you would submit issue.
+Please reach me over nevio.vesic@gmail.com or visit my [website](http://www.neviovesic.com/) or submit new [issue](https://github.com/0x19/goesl/issues/new). I'd prefer tho if you would submit [issue](https://github.com/0x19/goesl/issues/new).
 
 
 ### License
