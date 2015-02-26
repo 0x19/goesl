@@ -82,8 +82,6 @@ func (s *OutboundServer) Stop() {
 // NewOutboundServer - Will instanciate new outbound server
 func NewOutboundServer(addr string) (*OutboundServer, error) {
 	if len(addr) < 2 {
-
-		// Try to see if GOES_OUTBOUND_SERVER_ADDR is set. If it's set use that one ...
 		addr = os.Getenv("GOES_OUTBOUND_SERVER_ADDR")
 
 		if addr == "" {
@@ -93,7 +91,7 @@ func NewOutboundServer(addr string) (*OutboundServer, error) {
 
 	server := OutboundServer{
 		Addr:  addr,
-		Proto: "tcp", // Not seeing reason why this could become configurable at this moment
+		Proto: "tcp",
 		Conns: make(chan SocketConnection),
 	}
 
