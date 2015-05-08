@@ -82,7 +82,7 @@ func (s *OutboundServer) Stop() {
 // NewOutboundServer - Will instanciate new outbound server
 func NewOutboundServer(addr string) (*OutboundServer, error) {
 	if len(addr) < 2 {
-		addr = os.Getenv("GOES_OUTBOUND_SERVER_ADDR")
+		addr = os.Getenv("GOESL_OUTBOUND_SERVER_ADDR")
 
 		if addr == "" {
 			return nil, fmt.Errorf(EInvalidServerAddr, addr)
