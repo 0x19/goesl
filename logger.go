@@ -7,12 +7,13 @@
 package goesl
 
 import (
-	"github.com/op/go-logging"
 	"os"
+
+	"github.com/op/go-logging"
 )
 
 var (
-	log = logging.MustGetLogger("goes")
+	log = logging.MustGetLogger("goesl")
 
 	// Example format string. Everything except the message has a custom color
 	// which is dependent on the log level. Many fields have a custom output
@@ -23,23 +24,23 @@ var (
 )
 
 func Debug(message string, args ...interface{}) {
-	log.Debug(message, args...)
+	log.Debugf(message, args...)
 }
 
 func Error(message string, args ...interface{}) {
-	log.Error(message, args...)
+	log.Errorf(message, args...)
 }
 
 func Notice(message string, args ...interface{}) {
-	log.Notice(message, args...)
+	log.Noticef(message, args...)
 }
 
 func Info(message string, args ...interface{}) {
-	log.Info(message, args...)
+	log.Infof(message, args...)
 }
 
 func Warning(message string, args ...interface{}) {
-	log.Warning(message, args...)
+	log.Warningf(message, args...)
 }
 
 func init() {
