@@ -120,8 +120,24 @@ func (m *Message) Parse() error {
 			return fmt.Errorf(EUnsuccessfulReply, string(m.Body)[5:])
 		}
 	case "text/event-json":
-		if err := json.Unmarshal(m.Body, &m.Headers); err != nil {
+		// OK, what is missing here is a way to interpret other JSON types - it expects string only (understandably
+		// because the FS events are generally "string: string") - extract into empty interface and migrate only strings.
+		// i.e. Event CHANNEL_EXECUTE_COMPLETE - "variable_DP_MATCH":["a=rtpmap:101 telephone-event/8000","101"]
+		var decoded map[string]interface{}
+
+		if err := json.Unmarshal(m.Body, &decoded); err != nil {
 			return err
+		}
+
+		// Copy back in:
+		for k, v := range decoded {
+			switch v.(type) {
+			case string:
+				m.Headers[k] = v.(string)
+			default:
+				//delete(m.Headers, k)
+				Warning("Removed non-string property (%s)", k)
+			}
 		}
 
 		if v, _ := m.Headers["_body"]; v != "" {
