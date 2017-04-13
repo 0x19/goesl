@@ -20,4 +20,5 @@ var (
 	EUnexpectedAuthHeader    = "Expected auth/request content type. Got %s"
 	EInvalidPassword         = "Could not authenticate against freeswitch with provided password: %s"
 	ECouldNotCreateMessage   = "Error while creating new message: %s"
+	ECouldNotSendEvent       = "Must send at least one event header, detected `%d` header"
 )

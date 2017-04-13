@@ -13,6 +13,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -21,6 +22,7 @@ type SocketConnection struct {
 	net.Conn
 	err chan error
 	m   chan *Message
+	mtx sync.Mutex
 }
 
 // Dial - Will establish timedout dial against specified address. In this case, it will be freeswitch server
@@ -34,6 +36,9 @@ func (c *SocketConnection) Send(cmd string) error {
 	if strings.Contains(cmd, "\r\n") {
 		fmt.Errorf(EInvalidCommandProvided, cmd)
 	}
+	// lock mutex
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 
 	fmt.Fprintf(c, "%s\r\n\r\n", cmd)
 
@@ -48,6 +53,25 @@ func (c *SocketConnection) SendMany(cmds []string) error {
 			return err
 		}
 	}
+
+	return nil
+}
+
+// SendEvent - Will loop against passed event headers
+func (c *SocketConnection) SendEvent(eventHeaders []string) error {
+	if len(eventHeaders) <= 0 {
+		fmt.Errorf(ECouldNotSendEvent, len(eventHeaders))
+		return nil
+	}
+	// lock mutex to prevent event headers from conflicting
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	fmt.Fprint(c, "sendevent ")
+	for _, eventHeader := range eventHeaders {
+		fmt.Fprintf(c, "%s\r\n", eventHeader)
+	}
+	fmt.Fprint(c, "\r\n")
 
 	return nil
 }
