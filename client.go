@@ -10,6 +10,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"net"
+	"strconv"
 	"time"
 )
 
@@ -27,6 +29,9 @@ type Client struct {
 // EstablishConnection - Will attempt to establish connection against freeswitch and create new SocketConnection
 func (c *Client) EstablishConnection() error {
 	conn, err := c.Dial(c.Proto, c.Addr, time.Duration(c.Timeout*int(time.Second)))
+	if err != nil {
+		return err
+	}
 
 	c.SocketConnection = SocketConnection{
 		Conn: conn,
@@ -34,7 +39,7 @@ func (c *Client) EstablishConnection() error {
 		m:    make(chan *Message),
 	}
 
-	return err
+	return nil
 }
 
 // Authenticate - Method used to authenticate client against freeswitch. In case of any errors durring so
@@ -85,7 +90,7 @@ func (c *Client) Authenticate() error {
 func NewClient(host string, port uint, passwd string, timeout int) (*Client, error) {
 	client := Client{
 		Proto:   "tcp", // Let me know if you ever need this open up lol
-		Addr:    fmt.Sprintf("%s:%d", host, port),
+		Addr:    net.JoinHostPort(host, strconv.Itoa(int(port))),
 		Passwd:  passwd,
 		Timeout: timeout,
 	}
