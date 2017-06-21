@@ -9,6 +9,7 @@ package goesl
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"time"
 )
 
@@ -41,30 +42,31 @@ func (c *Client) EstablishConnection() error {
 func (c *Client) Authenticate() error {
 
 	m, err := newMessage(bufio.NewReaderSize(c, ReadBufferSize), false)
-
 	if err != nil {
 		Error(ECouldNotCreateMessage, err)
 		return err
 	}
 
 	cmr, err := m.tr.ReadMIMEHeader()
-
-	Debug("A: %v %v ", cmr, err)
-
 	if err != nil && err.Error() != "EOF" {
 		Error(ECouldNotReadMIMEHeaders, err)
 		return err
 	}
+
+	Debug("A: %v\n", cmr)
 
 	if cmr.Get("Content-Type") != "auth/request" {
 		Error(EUnexpectedAuthHeader, cmr.Get("Content-Type"))
 		return fmt.Errorf(EUnexpectedAuthHeader, cmr.Get("Content-Type"))
 	}
 
-	fmt.Fprintf(c, "auth %s\r\n\r\n", c.Passwd)
+	s := "auth " + c.Passwd + "\r\n\r\n"
+	_, err = io.WriteString(c, s)
+	if err != nil {
+		return err
+	}
 
 	am, err := m.tr.ReadMIMEHeader()
-
 	if err != nil && err.Error() != "EOF" {
 		Error(ECouldNotReadMIMEHeaders, err)
 		return err
@@ -80,7 +82,7 @@ func (c *Client) Authenticate() error {
 
 // NewClient - Will initiate new client that will establish connection and attempt to authenticate
 // against connected freeswitch server
-func NewClient(host string, port uint, passwd string, timeout int) (Client, error) {
+func NewClient(host string, port uint, passwd string, timeout int) (*Client, error) {
 	client := Client{
 		Proto:   "tcp", // Let me know if you ever need this open up lol
 		Addr:    fmt.Sprintf("%s:%d", host, port),
@@ -88,14 +90,16 @@ func NewClient(host string, port uint, passwd string, timeout int) (Client, erro
 		Timeout: timeout,
 	}
 
-	if err := client.EstablishConnection(); err != nil {
-		return client, err
+	err := client.EstablishConnection()
+	if err != nil {
+		return nil, err
 	}
 
-	if err := client.Authenticate(); err != nil {
+	err = client.Authenticate()
+	if err != nil {
 		client.Close()
-		return client, err
+		return nil, err
 	}
 
-	return client, nil
+	return &client, nil
 }

@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -34,13 +35,22 @@ func (c *SocketConnection) Dial(network string, addr string, timeout time.Durati
 func (c *SocketConnection) Send(cmd string) error {
 
 	if strings.Contains(cmd, "\r\n") {
-		fmt.Errorf(EInvalidCommandProvided, cmd)
+		return fmt.Errorf(EInvalidCommandProvided, cmd)
 	}
+
 	// lock mutex
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	fmt.Fprintf(c, "%s\r\n\r\n", cmd)
+	_, err := io.WriteString(c, cmd)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(c, "\r\n\r\n")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -60,18 +70,35 @@ func (c *SocketConnection) SendMany(cmds []string) error {
 // SendEvent - Will loop against passed event headers
 func (c *SocketConnection) SendEvent(eventHeaders []string) error {
 	if len(eventHeaders) <= 0 {
-		fmt.Errorf(ECouldNotSendEvent, len(eventHeaders))
-		return nil
+		return fmt.Errorf(ECouldNotSendEvent, len(eventHeaders))
 	}
+
 	// lock mutex to prevent event headers from conflicting
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	fmt.Fprint(c, "sendevent ")
-	for _, eventHeader := range eventHeaders {
-		fmt.Fprintf(c, "%s\r\n", eventHeader)
+	_, err := io.WriteString(c, "sendevent ")
+	if err != nil {
+		return err
 	}
-	fmt.Fprint(c, "\r\n")
+
+	for _, eventHeader := range eventHeaders {
+		_, err := io.WriteString(c, eventHeader)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.WriteString(c, "\r\n")
+		if err != nil {
+			return err
+		}
+
+	}
+
+	_, err = io.WriteString(c, "\r\n")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -131,9 +158,14 @@ func (c *SocketConnection) SendMsg(msg map[string]string, uuid, data string) (m 
 		b.WriteString(data)
 	}
 
-	if _, err := b.WriteTo(c); err != nil {
+	// lock mutex
+	c.mtx.Lock()
+	_, err = b.WriteTo(c)
+	if err != nil {
+		c.mtx.Unlock()
 		return nil, err
 	}
+	c.mtx.Unlock()
 
 	select {
 	case err := <-c.err:
