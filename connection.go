@@ -10,9 +10,11 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -21,6 +23,7 @@ type SocketConnection struct {
 	net.Conn
 	err chan error
 	m   chan *Message
+	mtx sync.Mutex
 }
 
 // Dial - Will establish timedout dial against specified address. In this case, it will be freeswitch server
@@ -32,10 +35,22 @@ func (c *SocketConnection) Dial(network string, addr string, timeout time.Durati
 func (c *SocketConnection) Send(cmd string) error {
 
 	if strings.Contains(cmd, "\r\n") {
-		fmt.Errorf(EInvalidCommandProvided, cmd)
+		return fmt.Errorf(EInvalidCommandProvided, cmd)
 	}
 
-	fmt.Fprintf(c, "%s\r\n\r\n", cmd)
+	// lock mutex
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	_, err := io.WriteString(c, cmd)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(c, "\r\n\r\n")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -47,6 +62,42 @@ func (c *SocketConnection) SendMany(cmds []string) error {
 		if err := c.Send(cmd); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// SendEvent - Will loop against passed event headers
+func (c *SocketConnection) SendEvent(eventHeaders []string) error {
+	if len(eventHeaders) <= 0 {
+		return fmt.Errorf(ECouldNotSendEvent, len(eventHeaders))
+	}
+
+	// lock mutex to prevent event headers from conflicting
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	_, err := io.WriteString(c, "sendevent ")
+	if err != nil {
+		return err
+	}
+
+	for _, eventHeader := range eventHeaders {
+		_, err := io.WriteString(c, eventHeader)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.WriteString(c, "\r\n")
+		if err != nil {
+			return err
+		}
+
+	}
+
+	_, err = io.WriteString(c, "\r\n")
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -107,9 +158,14 @@ func (c *SocketConnection) SendMsg(msg map[string]string, uuid, data string) (m 
 		b.WriteString(data)
 	}
 
-	if _, err := b.WriteTo(c); err != nil {
+	// lock mutex
+	c.mtx.Lock()
+	_, err = b.WriteTo(c)
+	if err != nil {
+		c.mtx.Unlock()
 		return nil, err
 	}
+	c.mtx.Unlock()
 
 	select {
 	case err := <-c.err:
