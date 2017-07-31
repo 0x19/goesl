@@ -7,11 +7,13 @@
 package examples
 
 import (
+	"context"
 	"fmt"
-	. "github.com/0x19/goesl"
 	"os"
 	"runtime"
 	"strings"
+
+	. "github.com/weave-lab/goesl"
 )
 
 var welcomeFile = "%s/media/welcome.wav"
@@ -47,6 +49,7 @@ func main() {
 
 // handle - Running under goroutine here to explain how to handle playback ( play to the caller )
 func handle(s *OutboundServer) {
+	ctx := context.Background()
 
 	for {
 
@@ -55,12 +58,12 @@ func handle(s *OutboundServer) {
 		case conn := <-s.Conns:
 			Notice("New incomming connection: %v", conn)
 
-			if err := conn.Connect(); err != nil {
+			if err := conn.Connect(ctx); err != nil {
 				Error("Got error while accepting connection: %s", err)
 				break
 			}
 
-			answer, err := conn.ExecuteAnswer("", false)
+			answer, err := conn.ExecuteAnswer(ctx, "", false)
 
 			if err != nil {
 				Error("Got error while executing answer: %s", err)
@@ -72,14 +75,14 @@ func handle(s *OutboundServer) {
 
 			cUUID := answer.GetCallUUID()
 
-			if sm, err := conn.Execute("playback", welcomeFile, true); err != nil {
+			if sm, err := conn.Execute(ctx, "playback", welcomeFile, true); err != nil {
 				Error("Got error while executing playback: %s", err)
 				break
 			} else {
 				Debug("Playback Message: %s", sm)
 			}
 
-			if hm, err := conn.ExecuteHangup(cUUID, "", false); err != nil {
+			if hm, err := conn.ExecuteHangup(ctx, cUUID, "", false); err != nil {
 				Error("Got error while executing hangup: %s", err)
 				break
 			} else {
@@ -88,7 +91,7 @@ func handle(s *OutboundServer) {
 
 			go func() {
 				for {
-					msg, err := conn.ReadMessage()
+					msg, err := conn.ReadMessage(ctx)
 
 					if err != nil {
 

@@ -35,8 +35,8 @@ func (c *Client) EstablishConnection() error {
 
 	c.SocketConnection = SocketConnection{
 		Conn: conn,
-		err:  make(chan error),
-		m:    make(chan *Message),
+
+		receive: make(chan message),
 	}
 
 	return nil
@@ -102,7 +102,7 @@ func NewClient(host string, port uint, passwd string, timeout int) (*Client, err
 
 	err = client.Authenticate()
 	if err != nil {
-		client.Close()
+		_ = client.Close()
 		return nil, err
 	}
 

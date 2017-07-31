@@ -7,11 +7,13 @@
 package examples
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	. "github.com/0x19/goesl"
 	"runtime"
 	"strings"
+
+	. "github.com/weave-lab/goesl"
 )
 
 var (
@@ -23,6 +25,8 @@ var (
 
 // Small client that will first make sure all events are returned as JSON and second, will originate
 func main() {
+
+	ctx := context.Background()
 
 	// Boost it as much as it can go ...
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -41,12 +45,12 @@ func main() {
 	// Remember that this is crutial part in handling incoming messages :)
 	go client.Handle()
 
-	client.Send("events json ALL")
+	client.Send(ctx, "events json ALL")
 
-	client.BgApi(fmt.Sprintf("originate %s %s", "sofia/internal/1001@127.0.0.1", "&socket(192.168.1.2:8084 async full)"))
+	client.BgApi(ctx, fmt.Sprintf("originate %s %s", "sofia/internal/1001@127.0.0.1", "&socket(192.168.1.2:8084 async full)"))
 
 	for {
-		msg, err := client.ReadMessage()
+		msg, err := client.ReadMessage(ctx)
 
 		if err != nil {
 
