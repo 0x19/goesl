@@ -9,6 +9,7 @@ package goesl
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -18,11 +19,17 @@ import (
 	"time"
 )
 
+type message struct {
+	err error
+	m   *Message
+}
+
 // Main connection against ESL - Gotta add more description here
 type SocketConnection struct {
 	net.Conn
-	err chan error
-	m   chan *Message
+
+	receive chan message
+
 	mtx sync.Mutex
 }
 
@@ -32,7 +39,7 @@ func (c *SocketConnection) Dial(network string, addr string, timeout time.Durati
 }
 
 // Send - Will send raw message to open net connection
-func (c *SocketConnection) Send(cmd string) error {
+func (c *SocketConnection) Send(ctx context.Context, cmd string) error {
 
 	if strings.Contains(cmd, "\r\n") {
 		return fmt.Errorf(EInvalidCommandProvided, cmd)
@@ -41,6 +48,12 @@ func (c *SocketConnection) Send(cmd string) error {
 	// lock mutex
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
+
+	deadline, ok := ctx.Deadline()
+	if ok {
+		_ = c.SetWriteDeadline(deadline)
+		defer func() { _ = c.SetWriteDeadline(time.Time{}) }()
+	}
 
 	_, err := io.WriteString(c, cmd)
 	if err != nil {
@@ -56,10 +69,10 @@ func (c *SocketConnection) Send(cmd string) error {
 }
 
 // SendMany - Will loop against passed commands and return 1st error if error happens
-func (c *SocketConnection) SendMany(cmds []string) error {
+func (c *SocketConnection) SendMany(ctx context.Context, cmds []string) error {
 
 	for _, cmd := range cmds {
-		if err := c.Send(cmd); err != nil {
+		if err := c.Send(ctx, cmd); err != nil {
 			return err
 		}
 	}
@@ -68,7 +81,7 @@ func (c *SocketConnection) SendMany(cmds []string) error {
 }
 
 // SendEvent - Will loop against passed event headers
-func (c *SocketConnection) SendEvent(eventHeaders []string) error {
+func (c *SocketConnection) SendEvent(ctx context.Context, eventHeaders []string) error {
 	if len(eventHeaders) <= 0 {
 		return fmt.Errorf(ECouldNotSendEvent, len(eventHeaders))
 	}
@@ -77,18 +90,20 @@ func (c *SocketConnection) SendEvent(eventHeaders []string) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
+	deadline, ok := ctx.Deadline()
+	if ok {
+		_ = c.SetWriteDeadline(deadline)
+		defer func() { _ = c.SetWriteDeadline(time.Time{}) }()
+	}
+
 	_, err := io.WriteString(c, "sendevent ")
 	if err != nil {
 		return err
 	}
 
 	for _, eventHeader := range eventHeaders {
-		_, err := io.WriteString(c, eventHeader)
-		if err != nil {
-			return err
-		}
 
-		_, err = io.WriteString(c, "\r\n")
+		_, err := io.WriteString(c, eventHeader+"\r\n")
 		if err != nil {
 			return err
 		}
@@ -104,27 +119,29 @@ func (c *SocketConnection) SendEvent(eventHeaders []string) error {
 }
 
 // Execute - Helper fuck to execute commands with its args and sync/async mode
-func (c *SocketConnection) Execute(command, args string, sync bool) (m *Message, err error) {
-	return c.SendMsg(map[string]string{
-		"call-command":     "execute",
-		"execute-app-name": command,
-		"execute-app-arg":  args,
-		"event-lock":       strconv.FormatBool(sync),
-	}, "", "")
+func (c *SocketConnection) Execute(ctx context.Context, command, args string, sync bool) (m *Message, err error) {
+	return c.SendMsg(ctx,
+		map[string]string{
+			"call-command":     "execute",
+			"execute-app-name": command,
+			"execute-app-arg":  args,
+			"event-lock":       strconv.FormatBool(sync),
+		}, "", "")
 }
 
 // ExecuteUUID - Helper fuck to execute uuid specific commands with its args and sync/async mode
-func (c *SocketConnection) ExecuteUUID(uuid string, command string, args string, sync bool) (m *Message, err error) {
-	return c.SendMsg(map[string]string{
-		"call-command":     "execute",
-		"execute-app-name": command,
-		"execute-app-arg":  args,
-		"event-lock":       strconv.FormatBool(sync),
-	}, uuid, "")
+func (c *SocketConnection) ExecuteUUID(ctx context.Context, uuid string, command string, args string, sync bool) (m *Message, err error) {
+	return c.SendMsg(ctx,
+		map[string]string{
+			"call-command":     "execute",
+			"execute-app-name": command,
+			"execute-app-arg":  args,
+			"event-lock":       strconv.FormatBool(sync),
+		}, uuid, "")
 }
 
 // SendMsg - Basically this func will send message to the opened connection
-func (c *SocketConnection) SendMsg(msg map[string]string, uuid, data string) (m *Message, err error) {
+func (c *SocketConnection) SendMsg(ctx context.Context, msg map[string]string, uuid, data string) (*Message, error) {
 
 	b := bytes.NewBufferString("sendmsg")
 
@@ -160,19 +177,26 @@ func (c *SocketConnection) SendMsg(msg map[string]string, uuid, data string) (m 
 
 	// lock mutex
 	c.mtx.Lock()
-	_, err = b.WriteTo(c)
-	if err != nil {
-		c.mtx.Unlock()
-		return nil, err
-	}
-	c.mtx.Unlock()
+	defer c.mtx.Unlock()
 
-	select {
-	case err := <-c.err:
-		return nil, err
-	case m := <-c.m:
-		return m, nil
+	deadline, ok := ctx.Deadline()
+	if ok {
+		_ = c.SetWriteDeadline(deadline)
+		defer func() { _ = c.SetWriteDeadline(time.Time{}) }()
 	}
+
+	_, err := b.WriteTo(c)
+	if err != nil {
+		return nil, err
+	}
+
+	m, err := c.ReadMessage(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return m, nil
+
 }
 
 // OriginatorAdd - Will return originator address known as net.RemoteAddr()
@@ -183,40 +207,65 @@ func (c *SocketConnection) OriginatorAddr() net.Addr {
 
 // ReadMessage - Will read message from channels and return them back accordingy.
 // If error is received, error will be returned. If not, message will be returned back!
-func (c *SocketConnection) ReadMessage() (*Message, error) {
+func (c *SocketConnection) ReadMessage(ctx context.Context) (*Message, error) {
 	Debug("Waiting for connection message to be received ...")
 
+	var m message
 	select {
-	case err := <-c.err:
-		return nil, err
-	case msg := <-c.m:
-		return msg, nil
+	case m = <-c.receive:
+	case <-ctx.Done():
+		return nil, fmt.Errorf("context deadline exceeded")
 	}
+
+	if m.m == nil {
+		return nil, fmt.Errorf("unable to read message, channel closed")
+	}
+
+	if m.err != nil {
+		return nil, m.err
+	}
+
+	return m.m, nil
 }
+
+const (
+	defaultHandleTimeout = time.Second
+)
 
 // Handle - Will handle new messages and close connection when there are no messages left to process
 func (c *SocketConnection) Handle() {
 
-	done := make(chan bool)
+	done := make(chan struct{})
 
 	go func() {
 		for {
-			msg, err := newMessage(bufio.NewReaderSize(c, ReadBufferSize), true)
 
+			msg, err := newMessage(bufio.NewReaderSize(c, ReadBufferSize), true)
 			if err != nil {
-				c.err <- err
-				done <- true
+
+				select {
+				case c.receive <- message{err: err}:
+				case <-time.After(defaultHandleTimeout):
+				}
+
+				close(done)
 				break
 			}
 
-			c.m <- msg
+			select {
+			case c.receive <- message{m: msg}:
+			case <-time.After(defaultHandleTimeout):
+				// if messages are getting dropped, receive syncronization will be messed up and unreliable
+			}
 		}
 	}()
 
 	<-done
 
+	close(c.receive)
+
 	// Closing the connection now as there's nothing left to do ...
-	c.Close()
+	_ = c.Close()
 }
 
 // Close - Will close down net connection and return error if error happen
