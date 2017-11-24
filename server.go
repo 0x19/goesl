@@ -52,9 +52,8 @@ func (s *OutboundServer) Start() error {
 			}
 
 			conn := SocketConnection{
-				Conn: c,
-				err:  make(chan error),
-				m:    make(chan *Message),
+				Conn:    c,
+				receive: make(chan message),
 			}
 
 			Notice("Got new connection from: %s", conn.OriginatorAddr())
@@ -76,7 +75,7 @@ func (s *OutboundServer) Start() error {
 // Stop - Will close server connection once SIGTERM/Interrupt is received
 func (s *OutboundServer) Stop() {
 	Warning("Stopping Outbound Server ...")
-	s.Close()
+	_ = s.Close()
 }
 
 // NewOutboundServer - Will instanciate new outbound server
