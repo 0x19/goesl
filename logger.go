@@ -47,4 +47,5 @@ func init() {
 	backend := logging.NewLogBackend(os.Stderr, "", 0)
 	formatter := logging.NewBackendFormatter(backend, format)
 	logging.SetBackend(formatter)
+	logging.SetLevel(logging.ERROR, "")
 }
