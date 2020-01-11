@@ -21,10 +21,14 @@ var (
 	format = logging.MustStringFormatter(
 		"%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.8s}%{color:reset} %{message}",
 	)
+
+	ShouldOutputDebugMessages = true
 )
 
 func Debug(message string, args ...interface{}) {
-	log.Debugf(message, args...)
+	if ShouldOutputDebugMessages {
+		log.Debugf(message, args...)
+	}
 }
 
 func Error(message string, args ...interface{}) {
@@ -41,6 +45,10 @@ func Info(message string, args ...interface{}) {
 
 func Warning(message string, args ...interface{}) {
 	log.Warningf(message, args...)
+}
+
+func SetLogger(backendLogger logging.Backend) {
+	logging.SetBackend(backendLogger)
 }
 
 func init() {

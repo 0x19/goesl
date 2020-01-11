@@ -215,3 +215,7 @@ func newMessage(r *bufio.Reader, autoParse bool) (*Message, error) {
 
 	return &msg, nil
 }
+
+func NewMessage(r *bufio.Reader, autoParse bool) (*Message, error) {
+	return newMessage(r, autoParse)
+}
