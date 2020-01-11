@@ -4,7 +4,7 @@
 [![Go 1.4 Ready](https://img.shields.io/badge/Go%201.4-Ready-green.svg?style=flat)]()
 [![Go 1.5 Ready](https://img.shields.io/badge/Go%201.5-Ready-green.svg?style=flat)]()
 
-##FreeSWITCH Event Socket Library Wrapper for Go
+## FreeSWITCH Event Socket Library Wrapper for Go
 
 GoESL is a small wrapper around [FreeSWITCH](https://freeswitch.org/) [Event Socket Library](https://wiki.freeswitch.org/wiki/Event_Socket_Library) written in [Go](http://golang.org).
 
