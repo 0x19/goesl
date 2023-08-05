@@ -34,9 +34,9 @@ func (m *Message) String() string {
 	return fmt.Sprintf("%v body=%s", m.Headers, m.Body)
 }
 
-// GetCallUUID - Will return Caller-Unique-Id
+// GetCallUUID - Will return Caller-Unique-ID
 func (m *Message) GetCallUUID() string {
-	return m.GetHeader("Caller-Unique-Id")
+	return m.GetHeader("Caller-Unique-ID")
 }
 
 // GetHeader - Will return message header value, or "" if the key is not set.
