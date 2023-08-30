@@ -11,4 +11,4 @@ install:
   - go get -v "github.com/op/go-logging"
 
 script:
-  - go test -run="TestJustToTest"
+  - go test
